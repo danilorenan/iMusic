@@ -1,0 +1,47 @@
+{
+    "expo": {
+        "name": "Project Nova",
+        "slug": "project-nova",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./src/assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "splash": {
+            "image": "./src/assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#121212"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.projectnova.app",
+            "infoPlist": {
+                "UIBackgroundModes": [
+                    "audio"
+                ]
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./src/assets/adaptive-icon.png",
+                "backgroundColor": "#121212"
+            },
+            "package": "com.projectnova.app"
+        },
+        "plugins":[
+            "expo-router",
+            "expo-font",[
+                "expo-file-system",
+                {
+                    "appleTeamId": "YOUR_APPLE_TEAM_ID"
+                }
+            ],
+            "expo-secure-store"
+        ],
+        "experiments": {
+            "typedRoutes": true
+        }
+    }
+}

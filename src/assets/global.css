@@ -1,0 +1,5 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* NativeWind V4 Exige um arquivo CSS global para injeção via Metro */
