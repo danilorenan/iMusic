@@ -1,37 +1,49 @@
-name: Build iOS
+name: Build Unsigned iOS (SideStore)
 
 on:
-  workflow_dispatch: # Permite rodar manualmente
+  workflow_dispatch: # Permite rodar manualmente lá no painel do GitHub
 
 jobs:
   build:
-    runs-on: macos-latest
-    
+    runs-on: macos-latest # Usa o Mac gratuito do GitHub
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout do Código
+        uses: actions/checkout@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Instalar Dependências
+        run: npm install
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
+      - name: Gerar pastas nativas do iOS (Expo Prebuild)
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Instalar Cocoapods (Bibliotecas Nativas)
+        run: |
+          cd ios
+          pod install
+
+      - name: Compilar para iPhone físico (Sem Assinatura) 🚀
+        run: |
+          cd ios
+          # O segredo está aqui: CODE_SIGNING_ALLOWED=NO diz pro Mac não pedir certificado
+          xcodebuild -workspace *.xcworkspace -scheme IMusic -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGNING_IDENTITY=""
+
+      - name: Empacotar no formato .ipa para o SideStore
+        run: |
+          cd ios/build/Build/Products/Release-iphoneos
+          mkdir Payload
+          # Pega o aplicativo compilado e coloca na pasta Payload (Padrão da Apple)
+          mv *.app Payload/
+          # Zipa transformando no formato mágico .ipa
+          zip -r ../../../../../IMusic-SideStore.ipa Payload
+
+      - name: Upload do IPA final
+        uses: actions/upload-artifact@v3
         with:
-          expo-version: latest
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Build iOS
-        run: eas build --platform ios --profile preview --non-interactive --local
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: imusic-ios
-          path: "*.ipa"
+          name: Project Nova
+          path: IMusic-SideStore.ipa

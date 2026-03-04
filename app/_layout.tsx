@@ -4,6 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View } from 'react-native';
+import TrackPlayer from 'react-native-track-player';
+import { PlaybackService } from '../src/core/player/service';
+TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 import '../src/assets/global.css'; // NativeWind
 import { initDatabase } from '../src/core/database/db';
