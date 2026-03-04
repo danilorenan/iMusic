@@ -1,0 +1,37 @@
+name: Build iOS
+
+on:
+  workflow_dispatch: # Permite rodar manualmente
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS
+        run: eas build --platform ios --profile preview --non-interactive --local
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: imusic-ios
+          path: "*.ipa"

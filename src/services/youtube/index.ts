@@ -1,47 +1,54 @@
 import axios from 'axios';
 import { YouTubeSearchResult } from '../../types';
 
-// Fallback logic using Invidious API (open source YouTube frontend/extractor)
-// To avoid strict Google API Quotas and "Music Video" search bias.
-const INVIDIOUS_INSTANCES = [
-    'https://vid.puffyan.us',
-    'https://invidious.asir.dev',
-    'https://invidious.flokinet.to',
-];
+// Função recursiva para encontrar o vídeo dentro do JSON gigante do YouTube
+const findVideoRenderer = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.videoRenderer && obj.videoRenderer.videoId) return obj.videoRenderer;
+    
+    for (const key in obj) {
+        const result = findVideoRenderer(obj[key]);
+        if (result) return result;
+    }
+    return null;
+};
 
 export const YouTubeService = {
     searchAudioContent: async (searchQuery: string): Promise<YouTubeSearchResult | null> => {
-        // Prefer "Topic" or "Audio" videos over Music Videos for better audio quality and no intro clips.
         const query = `${searchQuery} audio`;
+        
+        try {
+            // Buscamos direto na fonte (YouTube) sem usar APIs intermediárias!
+            // Enganamos o YouTube enviando um User-Agent de PC para não sermos bloqueados
+            const { data } = await axios.get(`https://www.youtube.com/results`, {
+                params: { search_query: query },
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                }
+            });
 
-        // Tenta instâncias aleatórias do Invidious até uma funcionar (Resiliência)
-        for (const instance of INVIDIOUS_INSTANCES) {
-            try {
-                const { data } = await axios.get(`${instance}/api/v1/search`, {
-                    params: {
-                        q: query,
-                        type: 'video',
-                        sort_by: 'relevance',
-                    },
-                    timeout: 5000,
-                });
-
-                if (data && data.length > 0) {
-                    const video = data[0];
+            // O YouTube embute os dados da pesquisa em uma variável javascript chamada ytInitialData
+            const match = data.match(/ytInitialData\s*=\s*(\{.*?\});<\/script>/);
+            
+            if (match && match[1]) {
+                const jsonData = JSON.parse(match[1]);
+                const video = findVideoRenderer(jsonData);
+                
+                if (video) {
                     return {
                         id: video.videoId,
-                        title: video.title,
-                        channel: video.author,
-                        duration: video.lengthSeconds ? String(video.lengthSeconds) : '0',
+                        title: video.title?.runs?.[0]?.text || 'Unknown Title',
+                        channel: video.ownerText?.runs?.[0]?.text || 'Unknown Channel',
+                        duration: video.lengthText?.simpleText || '0',
                     };
                 }
-            } catch (error) {
-                console.warn(`Invidious instance ${instance} failed. Retrying next...`);
-                continue;
             }
+            
+            throw new Error('Could not parse ytInitialData or no video found.');
+            
+        } catch (error: any) {
+            console.error('Direct YouTube Search Error:', error.message);
+            return null;
         }
-
-        console.error('All YouTube search instances failed.');
-        return null;
     }
 };

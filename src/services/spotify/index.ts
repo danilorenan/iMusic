@@ -1,92 +1,45 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { SpotifySearchResponse, SpotifyTrackItem, Track } from '../../types';
-
-const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID || '';
-const SPOTIFY_CLIENT_SECRET = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET || '';
-
-export const spotifyApi = axios.create({
-    baseURL: 'https://api.spotify.com/v1',
-});
-
-// Auth endpoint para client credentials flow
-const getAccessToken = async (): Promise<string> => {
-    const credentials = btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`);
-    const response = await axios.post(
-        'https://accounts.spotify.com/api/token',
-        'grant_type=client_credentials',
-        {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                Authorization: `Basic ${credentials}`,
-            },
-        }
-    );
-    return response.data.access_token;
-};
-
-// Axios Interceptor para adicionar o token e tentar refresh se expirar (401)
-spotifyApi.interceptors.request.use(async (config) => {
-    const token = await SecureStore.getItemAsync('SPOTIFY_TOKEN');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
-
-spotifyApi.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            try {
-                const newToken = await getAccessToken();
-                await SecureStore.setItemAsync('SPOTIFY_TOKEN', newToken);
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                return spotifyApi(originalRequest);
-            } catch (e) {
-                return Promise.reject(e);
-            }
-        }
-        return Promise.reject(error);
-    }
-);
-
-// Map Spotify DTO to our App Model
-const mapSpotifyTrack = (item: SpotifyTrackItem): Track => ({
-    id: item.id,
-    title: item.name,
-    artist: item.artists.map((a) => a.name).join(', '),
-    album: item.album.name,
-    artwork_url: item.album.images[0]?.url || '',
-    duration_ms: item.duration_ms,
-});
+import { Track } from '../../types';
 
 export const SpotifyService = {
     searchTracks: async (query: string, limit = 20): Promise<Track[]> => {
         try {
-            const { data } = await spotifyApi.get<SpotifySearchResponse>('/search', {
+            // A API da Apple não precisa de token nenhum!
+            const { data } = await axios.get('https://itunes.apple.com/search', {
                 params: {
-                    q: query,
-                    type: 'track',
+                    term: query,
+                    entity: 'song',
                     limit,
                 },
             });
-            return data.tracks.items.map(mapSpotifyTrack);
+            
+            // Mapeamos a resposta da Apple para o seu tipo Track
+            return data.results.map((item: any) => ({
+                id: item.trackId.toString(),
+                title: item.trackName,
+                artist: item.artistName,
+                album: item.collectionName,
+                // O iTunes retorna imagens pequenas (100x100), esse replace troca para (600x600)
+                artwork_url: item.artworkUrl100.replace('100x100bb', '600x600bb'),
+                duration_ms: item.trackTimeMillis,
+            }));
         } catch (error) {
-            console.error('Spotify Search Error:', error);
+            console.error('Erro na Busca:', error);
             throw error;
         }
     },
 
     getTrackInfo: async (trackId: string): Promise<Track> => {
-        try {
-            const { data } = await spotifyApi.get<SpotifyTrackItem>(`/tracks/${trackId}`);
-            return mapSpotifyTrack(data);
-        } catch (error) {
-            console.error('Spotify Get Track Error:', error);
-            throw error;
-        }
+        // ... (A API do itunes permite buscar por ID usando lookup?id=trackId)
+        const { data } = await axios.get(`https://itunes.apple.com/lookup?id=${trackId}`);
+        const item = data.results[0];
+        return {
+            id: item.trackId.toString(),
+            title: item.trackName,
+            artist: item.artistName,
+            album: item.collectionName,
+            artwork_url: item.artworkUrl100.replace('100x100bb', '600x600bb'),
+            duration_ms: item.trackTimeMillis,
+        };
     }
 };

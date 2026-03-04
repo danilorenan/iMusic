@@ -1,80 +1,63 @@
-import { Track } from '../../types';
-import { TrackRepository } from '../database/repositories';
+import TrackPlayer from 'react-native-track-player';
+import { usePlayerStore } from '../../store/PlayerStore';
 import { YouTubeService } from '../../services/youtube';
 import { CobaltService } from '../../services/youtube/cobalt';
-import TrackPlayer, { Track as RNTrack } from 'react-native-track-player';
-import { usePlayerStore } from '../../store/PlayerStore';
+import { TrackRepository } from '../database/repositories';
+import { Track } from '../../types/models';
 
-/**
- * Audio Pipeline Master Class (O Motor de Resolução)
- * Orchestrates: Local Cache Check -> YouTube Search -> Cobalt Audio Extract -> Track Player Inject
- */
 export const AudioPipeline = {
-    playTrack: async (track: Track) => {
-        const store = usePlayerStore.getState();
-        store.setCurrentTrack(track);
-        store.setIsBuffering(true);
+  playTrack: async (track: Track, queue?: Track[]) => {
+    const store = usePlayerStore.getState();
 
-        try {
-            // 1. Verifica no SQLite se a faixa já foi baixada
-            const localTrack = TrackRepository.getLocalTrackById(track.id);
-            let playableUrl = '';
+    try {
+      store.setCurrentTrack(track);
+      store.setIsPlaying(true);
+      store.setIsBuffering(true);
 
-            if (localTrack && localTrack.local_path) {
-                console.log('📦 Tunning from Local Storage:', localTrack.local_path);
-                playableUrl = localTrack.local_path;
-            } else {
-                // 2. Modo Streaming: Busca YouTube
-                console.log('📡 Search Streaming for:', track.artist, track.title);
-                const searchQuery = `${track.artist} - ${track.title}`;
-                const ytResult = await YouTubeService.searchAudioContent(searchQuery);
+      if (queue) {
+        store.setQueue(queue);
+      }
 
-                if (!ytResult) throw new Error('Could not find corresponding audio stream on Youtube');
+      // 1. Check local cache
+      const localTrack = TrackRepository.getLocalTrackById(track.id);
+      let audioUrl: string;
 
-                // 3. Resolve Cobalt Stream
-                console.log('⚙️ Resolving via Cobalt:', ytResult.id);
-                playableUrl = await CobaltService.resolveAudioStream(ytResult.id);
-            }
+      if (localTrack) {
+        console.log('📁 Playing from local storage');
+        audioUrl = localTrack.local_path;
+      } else {
+        // 2. Resolve via YouTube + Backend
+        console.log(`📡 Resolving: ${track.artist} - ${track.title}`);
+        const searchResult = await YouTubeService.searchAudioContent(
+          `${track.artist} ${track.title}`
+        );
 
-            // 4. Executa no TrackPlayer
-            const playerTrack: RNTrack = {
-                id: track.id,
-                url: playableUrl,
-                title: track.title,
-                artist: track.artist,
-                artwork: track.artwork_url,
-                duration: track.duration_ms / 1000,
-            };
-
-            await TrackPlayer.reset();
-            await TrackPlayer.add([playerTrack]);
-            await TrackPlayer.play();
-
-            store.setIsPlaying(true);
-            store.setIsBuffering(false);
-
-        } catch (error) {
-            store.setIsBuffering(false);
-            store.setIsPlaying(false);
-            console.error('Audio Pipeline failed to play track:', error);
-            // Aqui pode-se implementar o fallback de pular para a proxima musica: AudioPipeline.skipToNext() e Toast notification.
+        if (!searchResult) {
+          throw new Error('Nenhum resultado no YouTube');
         }
-    },
 
-    skipToNext: async () => {
-        const store = usePlayerStore.getState();
-        const { queue, currentTrack } = store;
+        console.log(`⚙️ Getting stream: ${searchResult.id}`);
+        audioUrl = await CobaltService.resolveAudioStream(searchResult.id);
+      }
 
-        if (queue.length === 0) return;
+      // 3. Play via TrackPlayer
+      await TrackPlayer.reset();
+      await TrackPlayer.add({
+        id: track.id,
+        url: audioUrl,
+        title: track.title,
+        artist: track.artist,
+        artwork: track.artwork_url,
+        duration: track.duration_ms / 1000,
+      });
+      await TrackPlayer.play();
 
-        const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-        const nextTrack = queue[currentIndex + 1];
-
-        if (nextTrack) {
-            await AudioPipeline.playTrack(nextTrack);
-        } else {
-            await TrackPlayer.stop();
-            store.setIsPlaying(false);
-        }
+      store.setIsBuffering(false);
+      console.log('▶️ Playing:', track.title);
+    } catch (error) {
+      store.setIsBuffering(false);
+      store.setIsPlaying(false);
+      console.error('❌ Pipeline failed:', error);
     }
+  },
 };

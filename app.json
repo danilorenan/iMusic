@@ -1,47 +1,61 @@
 {
-    "expo": {
-        "name": "Project Nova",
-        "slug": "project-nova",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "icon": "./src/assets/icon.png",
-        "userInterfaceStyle": "dark",
-        "splash": {
-            "image": "./src/assets/splash.png",
-            "resizeMode": "contain",
-            "backgroundColor": "#121212"
-        },
-        "assetBundlePatterns": [
-            "**/*"
+  "expo": {
+    "name": "Project Nova",
+    "slug": "project-nova",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./src/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.projectnova.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
         ],
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.projectnova.app",
-            "infoPlist": {
-                "UIBackgroundModes": [
-                    "audio"
-                ]
-            }
-        },
-        "android": {
-            "adaptiveIcon": {
-                "foregroundImage": "./src/assets/adaptive-icon.png",
-                "backgroundColor": "#121212"
-            },
-            "package": "com.projectnova.app"
-        },
-        "plugins":[
-            "expo-router",
-            "expo-font",[
-                "expo-file-system",
-                {
-                    "appleTeamId": "YOUR_APPLE_TEAM_ID"
-                }
-            ],
-            "expo-secure-store"
-        ],
-        "experiments": {
-            "typedRoutes": true
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#121212"
+      },
+      "package": "com.projectnova.app",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-file-system",
+        {
+          "appleTeamId": "YOUR_APPLE_TEAM_ID"
         }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ed7e3eb5-2c6e-40b2-9a8f-56d07f65bce0"
+      }
     }
+  }
 }
