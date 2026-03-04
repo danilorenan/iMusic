@@ -1,49 +1,53 @@
 name: Build Unsigned iOS (SideStore)
 
 on:
-  workflow_dispatch: # Permite rodar manualmente lá no painel do GitHub
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest # Usa o Mac gratuito do GitHub
+    runs-on: macos-latest
 
     steps:
-      - name: Checkout do Código
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - name: Instalar Dependências
+      - name: Install dependencies
         run: npm install
 
-      - name: Gerar pastas nativas do iOS (Expo Prebuild)
+      - name: Expo Prebuild
         run: npx expo prebuild --platform ios --clean
 
-      - name: Instalar Cocoapods (Bibliotecas Nativas)
+      - name: Install CocoaPods
         run: |
           cd ios
           pod install
 
-      - name: Compilar para iPhone físico (Sem Assinatura) 🚀
+      - name: Build unsigned IPA
         run: |
           cd ios
-          # O segredo está aqui: CODE_SIGNING_ALLOWED=NO diz pro Mac não pedir certificado
-          xcodebuild -workspace *.xcworkspace -scheme IMusic -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGNING_IDENTITY=""
+          xcodebuild -workspace *.xcworkspace \
+            -scheme iMusic \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY=""
 
-      - name: Empacotar no formato .ipa para o SideStore
+      - name: Package IPA
         run: |
           cd ios/build/Build/Products/Release-iphoneos
           mkdir Payload
-          # Pega o aplicativo compilado e coloca na pasta Payload (Padrão da Apple)
           mv *.app Payload/
-          # Zipa transformando no formato mágico .ipa
-          zip -r ../../../../../IMusic-SideStore.ipa Payload
+          zip -r ../../../../iMusic-SideStore.ipa Payload
 
-      - name: Upload do IPA final
-        uses: actions/upload-artifact@v3
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
         with:
           name: Project Nova
-          path: IMusic-SideStore.ipa
+          path: ios/iMusic-SideStore.ipa
