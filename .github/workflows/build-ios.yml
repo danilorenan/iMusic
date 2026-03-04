@@ -30,11 +30,6 @@ jobs:
           cd ios
           pod install
 
-      - name: List schemes
-        run: |
-          cd ios
-          xcodebuild -workspace *.xcworkspace -list
-
       - name: Build unsigned IPA
         run: |
           cd ios
@@ -45,7 +40,15 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_IDENTITY=""
+            CODE_SIGNING_IDENTITY="" \
+            2>&1 | tee build.log | tail -100
+          
+          # Se falhou, mostra só os erros
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "========== ERRORS =========="
+            grep -A 3 "error:" build.log | tail -50
+            exit 1
+          fi
 
       - name: Package IPA
         run: |
