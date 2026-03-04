@@ -1,10 +1,13 @@
+// babel.config.js
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    presets: [
+      'babel-preset-expo',
+      'nativewind/babel-preset',  // ← Movido para presets (NativeWind v4)
+    ],
     plugins: [
-      'nativewind/babel',
-      'react-native-reanimated/plugin', // DEVE ser o último
+      'react-native-reanimated/plugin',  // ← Deve ser o último plugin
     ],
   };
 };
