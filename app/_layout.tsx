@@ -4,12 +4,22 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View } from 'react-native';
+import TrackPlayer, { Event } from 'react-native-track-player';
 
 import '../src/assets/global.css';
 import { initDatabase } from '../src/core/database/db';
 import { setupPlayer } from '../src/core/player/setup';
 
 const queryClient = new QueryClient();
+
+// Registrar PlaybackService UMA vez, fora do componente
+TrackPlayer.registerPlaybackService(() => async () => {
+    TrackPlayer.addEventListener(Event.RemotePause, () => TrackPlayer.pause());
+    TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
+    TrackPlayer.addEventListener(Event.RemoteNext, () => TrackPlayer.skipToNext());
+    TrackPlayer.addEventListener(Event.RemotePrevious, () => TrackPlayer.skipToPrevious());
+    TrackPlayer.addEventListener(Event.RemoteSeek, (e) => TrackPlayer.seekTo(e.position));
+});
 
 export default function RootLayout() {
     const [isReady, setIsReady] = useState(false);
@@ -25,7 +35,6 @@ export default function RootLayout() {
                 setIsReady(true);
             }
         }
-
         bootApp();
     }, []);
 
