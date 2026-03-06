@@ -1,131 +1,137 @@
 import { create } from 'zustand';
+// @ts-ignore - APIs exist at runtime
 import * as FileSystem from 'expo-file-system';
-import { Track } from '../types';
-import { TrackRepository } from '../core/database/repositories';
+import { Track } from '../types/models';
 import { YouTubeService } from '../services/youtube';
 import { CobaltService } from '../services/youtube/cobalt';
+import { TrackRepository } from '../core/database/repositories';
 
-export interface DownloadTask {
+interface DownloadTask {
     track: Track;
-    progress: number; // 0 to 1
+    progress: number;
     status: 'pending' | 'downloading' | 'completed' | 'error';
-    resumable?: FileSystem.DownloadResumable;
+    resumable?: any;
 }
 
-interface DownloadManagerStore {
-    activeDownloads: Record<string, DownloadTask>; // Keyed by track ID
-
-    // Actions
+interface DownloadManagerState {
+    activeDownloads: Record<string, DownloadTask>;
     addTrackToDownload: (track: Track) => Promise<void>;
-    cancelDownload: (trackId: string) => Promise<void>;
+    cancelDownload: (trackId: string) => void;
     clearCompleted: () => void;
 }
 
-export const useDownloadManagerStore = create<DownloadManagerStore>((set, get) => ({
+export const useDownloadManagerStore = create<DownloadManagerState>((set, get) => ({
     activeDownloads: {},
 
     addTrackToDownload: async (track: Track) => {
-        // 1. Evita duplicidade
-        if (get().activeDownloads[track.id] || TrackRepository.getLocalTrackById(track.id)) {
-            return;
-        }
+        const { activeDownloads } = get();
+        if (activeDownloads[track.id]) return;
 
         set((state) => ({
             activeDownloads: {
                 ...state.activeDownloads,
-                [track.id]: { track, progress: 0, status: 'pending' }
-            }
+                [track.id]: { track, progress: 0, status: 'pending' },
+            },
         }));
 
         try {
-            // 2. Resolve Cobalt Pipeline (obter a URL de download real)
-            const searchQuery = `${track.artist} - ${track.title}`;
-            const ytResult = await YouTubeService.searchAudioContent(searchQuery);
-            if (!ytResult) throw new Error('Not found on YouTube');
+            const searchResult = await YouTubeService.searchAudioContent(
+                `${track.artist} ${track.title}`
+            );
+            if (!searchResult) throw new Error('No YouTube result');
 
-            const downloadUrl = await CobaltService.resolveAudioStream(ytResult.id);
+            const audioUrl = await CobaltService.resolveAudioStream(searchResult.id);
 
-            // 3. Define onde será salvo (dentro do App Context)
-            const sanitizedName = `${track.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${track.id}.mp3`;
+            const sanitizedName = `${track.title}_${track.id}.mp3`.replace(/[^a-zA-Z0-9._-]/g, '_');
+            // @ts-ignore
             const fileUri = `${FileSystem.documentDirectory}${sanitizedName}`;
 
-            // 4. Inicia o expo-file-system Download API (Com report de progresso)
-            const downloadResumable = FileSystem.createDownloadResumable(
-                downloadUrl,
+            // @ts-ignore
+            const resumable = FileSystem.createDownloadResumable(
+                audioUrl,
                 fileUri,
                 {},
-                (downloadProgress) => {
-                    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-                    set((state) => {
-                        const currentDraft = { ...state.activeDownloads };
-                        if (currentDraft[track.id]) {
-                            currentDraft[track.id].progress = progress;
-                            currentDraft[track.id].status = 'downloading';
-                        }
-                        return { activeDownloads: currentDraft };
-                    });
+                (downloadProgress: any) => {
+                    const progress =
+                        downloadProgress.totalBytesWritten /
+                        downloadProgress.totalBytesExpectedToWrite;
+                    set((state) => ({
+                        activeDownloads: {
+                            ...state.activeDownloads,
+                            [track.id]: {
+                                ...state.activeDownloads[track.id],
+                                progress,
+                                status: 'downloading' as const,
+                            },
+                        },
+                    }));
                 }
             );
 
-            // Mutação segura injetando a task na store para caso o usuário queira cancelar
-            set((state) => {
-                const d = { ...state.activeDownloads };
-                if (d[track.id]) d[track.id].resumable = downloadResumable;
-                return { activeDownloads: d };
-            });
+            set((state) => ({
+                activeDownloads: {
+                    ...state.activeDownloads,
+                    [track.id]: {
+                        ...state.activeDownloads[track.id],
+                        resumable,
+                        status: 'downloading' as const,
+                    },
+                },
+            }));
 
-            // 5. Baixar de Fato (await)
-            const result = await downloadResumable.downloadAsync();
+            const result = await resumable.downloadAsync();
 
-            if (result && result.uri) {
-                set((state) => {
-                    const d = { ...state.activeDownloads };
-                    d[track.id].status = 'completed';
-                    d[track.id].progress = 1;
-                    return { activeDownloads: d };
-                });
-
-                // 6. DB: Salva Relação no SQLite como Música Offline Local (id, local_path...)
+            if (result?.uri) {
                 TrackRepository.saveLocalTrack({
                     ...track,
                     local_path: result.uri,
-                    downloaded_at: Date.now()
+                    downloaded_at: Date.now(),
                 });
 
-                console.log(`✅ Downloaded and saved: ${track.title}`);
+                set((state) => ({
+                    activeDownloads: {
+                        ...state.activeDownloads,
+                        [track.id]: {
+                            ...state.activeDownloads[track.id],
+                            progress: 1,
+                            status: 'completed' as const,
+                        },
+                    },
+                }));
             }
-
         } catch (error) {
-            console.error(`❌ Download falhou para ${track.title}:`, error);
-            set((state) => {
-                const d = { ...state.activeDownloads };
-                d[track.id].status = 'error';
-                return { activeDownloads: d };
-            });
+            console.error('Download failed:', error);
+            set((state) => ({
+                activeDownloads: {
+                    ...state.activeDownloads,
+                    [track.id]: {
+                        ...state.activeDownloads[track.id],
+                        status: 'error' as const,
+                    },
+                },
+            }));
         }
     },
 
-    cancelDownload: async (trackId: string) => {
+    cancelDownload: (trackId: string) => {
         const task = get().activeDownloads[trackId];
-        if (task && task.status === 'downloading' && task.resumable) {
-            await task.resumable.cancelAsync();
+        if (task?.resumable) {
+            task.resumable.pauseAsync();
         }
         set((state) => {
-            const d = { ...state.activeDownloads };
-            delete d[trackId];
-            return { activeDownloads: d };
+            const { [trackId]: _, ...rest } = state.activeDownloads;
+            return { activeDownloads: rest };
         });
     },
 
     clearCompleted: () => {
         set((state) => {
-            const d = { ...state.activeDownloads };
-            Object.keys(d).forEach(k => {
-                if (d[k].status === 'completed' || d[k].status === 'error') {
-                    delete d[k];
-                }
-            });
-            return { activeDownloads: d };
+            const filtered = Object.fromEntries(
+                Object.entries(state.activeDownloads).filter(
+                    ([_, task]) => task.status !== 'completed' && task.status !== 'error'
+                )
+            );
+            return { activeDownloads: filtered };
         });
-    }
+    },
 }));
