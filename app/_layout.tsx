@@ -4,10 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View } from 'react-native';
-import TrackPlayer from 'react-native-track-player';
-import { PlaybackService } from '../src/core/player/service';
 
-import '../src/assets/global.css'; // NativeWind
+import '../src/assets/global.css';
 import { initDatabase } from '../src/core/database/db';
 import { setupPlayer } from '../src/core/player/setup';
 
@@ -19,12 +17,8 @@ export default function RootLayout() {
     useEffect(() => {
         async function bootApp() {
             try {
-                // 1. Inicializa o banco de dados (Tabelas Tracks, Playlists, etc)
                 initDatabase();
-
-                // 2. Inicializa o setup do Audio Player
                 await setupPlayer();
-
             } catch (err) {
                 console.error('System Boot Failed:', err);
             } finally {
@@ -36,7 +30,6 @@ export default function RootLayout() {
     }, []);
 
     if (!isReady) {
-        // Tela de Splash base preta enquanto carrega
         return <View style={{ flex: 1, backgroundColor: '#121212' }} />;
     }
 
@@ -50,10 +43,7 @@ export default function RootLayout() {
                         contentStyle: { backgroundColor: '#121212' },
                     }}
                 >
-                    {/* As abas principais do app */}
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-                    {/* A tela do Player Full que sobe sendo um modal full-screen custom */}
                     <Stack.Screen
                         name="player"
                         options={{
@@ -66,6 +56,3 @@ export default function RootLayout() {
         </QueryClientProvider>
     );
 }
-
-
-TrackPlayer.registerPlaybackService(() => PlaybackService);
