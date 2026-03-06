@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Play, Pause } from 'lucide-react-native';
-import TrackPlayer, { useProgress } from '../../core/player/trackPlayer.mock';
+import TrackPlayer, { useProgress } from 'react-native-track-player';
 import { usePlayerStore } from '../../store/PlayerStore';
 
 export const MiniPlayer = () => {

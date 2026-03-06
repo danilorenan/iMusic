@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { ChevronDown, Play, Pause, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react-native';
-import TrackPlayer, { useProgress } from '../src/core/player/trackPlayer.mock';
+import TrackPlayer, { useProgress, usePlaybackState, State } from 'react-native-track-player';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { usePlayerStore } from '../src/store/PlayerStore';
 import { AudioPipeline } from '../src/core/player/AudioPipeline';
