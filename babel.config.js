@@ -4,10 +4,10 @@ module.exports = function (api) {
   return {
     presets: [
       'babel-preset-expo',
-      'nativewind/babel-preset',  // ← Movido para presets (NativeWind v4)
+      'nativewind/babel',  // ← Nome correto, como preset
     ],
     plugins: [
-      'react-native-reanimated/plugin',  // ← Deve ser o último plugin
+      'react-native-reanimated/plugin',
     ],
   };
 };
