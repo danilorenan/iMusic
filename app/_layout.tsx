@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { View } from 'react-native';
 import TrackPlayer from 'react-native-track-player';
 import { PlaybackService } from '../src/core/player/service';
-TrackPlayer.registerPlaybackService(() => PlaybackService);
 
 import '../src/assets/global.css'; // NativeWind
 import { initDatabase } from '../src/core/database/db';
@@ -67,3 +66,6 @@ export default function RootLayout() {
         </QueryClientProvider>
     );
 }
+
+
+TrackPlayer.registerPlaybackService(() => PlaybackService);
